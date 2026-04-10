@@ -6,6 +6,7 @@ from PIL import Image
 import io
 import os
 from datetime import datetime
+from flask import render_template
 
 app = Flask(__name__)
 CORS(app)
@@ -16,6 +17,10 @@ print(f"Device: {device}")
 print("Loading CLIP model...")
 model, preprocess = clip.load("ViT-B/32", device=device)
 print("✅ CLIP loaded")
+
+@app.route('/')
+def home():
+    return render_template('index.html')
 
 @app.route('/health', methods=['GET'])
 def health():
