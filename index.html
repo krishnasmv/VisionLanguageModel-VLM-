@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Image Captioning App</title>
+</head>
+<body>
+    <h2>Upload Image for Caption / Summary</h2>
+
+    <form id="uploadForm">
+        <input type="file" name="image" id="image" required />
+        <br><br>
+
+        <select name="mode" id="mode">
+            <option value="caption">Caption</option>
+            <option value="summary">Summary</option>
+        </select>
+
+        <br><br>
+        <button type="submit">Submit</button>
+    </form>
+
+    <h3>Output:</h3>
+    <p id="output"></p>
+
+    <script>
+        const form = document.getElementById("uploadForm");
+
+        form.addEventListener("submit", async (e) => {
+            e.preventDefault();
+
+            let formData = new FormData();
+            formData.append("image", document.getElementById("image").files[0]);
+            formData.append("mode", document.getElementById("mode").value);
+
+            let response = await fetch("/predict", {
+                method: "POST",
+                body: formData
+            });
+
+            let data = await response.json();
+            document.getElementById("output").innerText = data.result;
+        });
+    </script>
+</body>
+</html>
