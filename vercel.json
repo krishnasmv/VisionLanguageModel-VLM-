@@ -1,7 +1,0 @@
-{
-  "functions": {
-    "app/api/clip/route.js": {
-      "maxDuration": 60
-    }
-  }
-}
