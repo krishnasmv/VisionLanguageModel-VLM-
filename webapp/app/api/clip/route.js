@@ -1,13 +1,9 @@
 export async function POST(req) {
   const { image_base64, task } = await req.json();
-  const HF_TOKEN = process.env.HUGGINGFACE_API_KEY;
+  const REPLICATE_TOKEN = process.env.REPLICATE_API_KEY;
 
-  console.log('HF_TOKEN:', HF_TOKEN ? 'set' : 'missing');
-  console.log('Task:', task);
-  console.log('Image size:', image_base64?.length);
-
-  if (!HF_TOKEN) {
-    return Response.json({ error: "Missing HUGGINGFACE_API_KEY" }, { status: 400 });
+  if (!REPLICATE_TOKEN) {
+    return Response.json({ error: "Missing REPLICATE_API_KEY" }, { status: 400 });
   }
 
   if (!image_base64 || !task) {
@@ -19,32 +15,22 @@ export async function POST(req) {
       ? 'Generate a short caption for this image.' 
       : 'Summarize what you see in this image.';
 
-    console.log('Prompt:', prompt);
-    console.log('Calling HuggingFace API...');
-
-    
-    const response = await fetch(
-      "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base",
-      {
-        headers: { Authorization: `Bearer ${HF_TOKEN}` },
-        method: "POST",
-        body: JSON.stringify({
-          inputs: image_base64,
-        }),
-      }
-    );
-
-    console.log('HF Response status:', response.status);
-
-    if (!response.ok) {
-      const errorData = await response.text();
-      console.error('HF Error:', errorData);
-      return Response.json({ error: `HuggingFace API error: ${errorData}` }, { status: response.status });
-    }
+    const response = await fetch("https://api.replicate.com/v1/predictions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Token ${REPLICATE_TOKEN}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        version: "e5cd7715b9c708d8b32043b91729f439867d428c45ab13adc2b71204b11b19fb",
+        input: {
+          image: `data:image/jpeg;base64,${image_base64}`,
+          prompt: prompt,
+        },
+      }),
+    });
 
     const result = await response.json();
-    console.log('HF Result:', result);
-
     return Response.json(result);
   } catch (error) {
     console.error('Server error:', error);
