@@ -22,14 +22,14 @@ export async function POST(req) {
     console.log('Prompt:', prompt);
     console.log('Calling HuggingFace API...');
 
+    
     const response = await fetch(
-      "https://router.huggingface.co/models/Qwen/Qwen2.5-VL-7B-Instruct",
+      "https://api-inference.huggingface.co/models/Salesforce/blip-image-captioning-base",
       {
         headers: { Authorization: `Bearer ${HF_TOKEN}` },
         method: "POST",
         body: JSON.stringify({
-          inputs: prompt,
-          image: image_base64,
+          inputs: image_base64,
         }),
       }
     );
