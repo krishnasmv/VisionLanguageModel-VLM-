@@ -2,27 +2,52 @@
 import { useState } from 'react';
 
 export default function Home() {
-  const [imageUrl, setImageUrl] = useState('');
-  const [text, setText] = useState('');
-  const [results, setResults] = useState(null);
+  const [image, setImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const [task, setTask] = useState('caption');
+  const [result, setResult] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImage(file);
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!image) {
+      setError('Please upload an image');
+      return;
+    }
+
     setLoading(true);
     setError('');
 
     try {
-      const res = await fetch('/api/clip', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image_url: imageUrl, text }),
-      });
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        const base64 = reader.result.split(',')[1];
 
-      if (!res.ok) throw new Error('API error');
-      const data = await res.json();
-      setResults(data);
+        const res = await fetch('/api/clip', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image_base64: base64, task }),
+        });
+
+        if (!res.ok) throw new Error('API error');
+        const data = await res.json();
+        setResult(data?.generated_text || data?.[0]?.generated_text || JSON.stringify(data));
+      };
+      reader.readAsDataURL(image);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -31,76 +56,105 @@ export default function Home() {
   };
 
   return (
-    <div style={{ maxWidth: '600px', margin: '50px auto', fontFamily: 'sans-serif', padding: '20px' }}>
-      <h1>CLIP Image-Text Matcher</h1>
-      <p style={{ color: '#666' }}>Match images to text labels using OpenAI CLIP</p>
-      
+    <div style={{ maxWidth: '700px', margin: '50px auto', fontFamily: 'sans-serif', padding: '20px' }}>
+      <h1>Qwen2.5-VL: Image Caption & Summarizer</h1>
+      <p style={{ color: '#666' }}>Upload an image and get captions or summaries</p>
+
       <form onSubmit={handleSubmit}>
-        <div style={{ marginBottom: '15px' }}>
+        <div style={{ marginBottom: '20px' }}>
           <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-            Image URL
+            Upload Image
           </label>
           <input
-            type="text"
-            placeholder="https://example.com/image.jpg"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            required
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
             style={{
               width: '100%',
               padding: '10px',
-              border: '1px solid #ddd',
+              border: '2px solid #ddd',
               borderRadius: '4px',
               boxSizing: 'border-box',
             }}
           />
         </div>
 
-        <div style={{ marginBottom: '15px' }}>
-          <label style={{ display: 'block', marginBottom: '5px', fontWeight: 'bold' }}>
-            Labels (comma-separated)
+        {imagePreview && (
+          <div style={{ marginBottom: '20px' }}>
+            <img
+              src={imagePreview}
+              alt="Preview"
+              style={{
+                maxWidth: '100%',
+                maxHeight: '300px',
+                borderRadius: '4px',
+                border: '1px solid #ddd',
+              }}
+            />
+          </div>
+        )}
+
+        <div style={{ marginBottom: '20px' }}>
+          <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold' }}>
+            Select Task
           </label>
-          <textarea
-            placeholder="cat, dog, person"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            required
-            style={{
-              width: '100%',
-              height: '80px',
-              padding: '10px',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              boxSizing: 'border-box',
-              fontFamily: 'monospace',
-            }}
-          />
+          <div style={{ display: 'flex', gap: '15px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <input
+                type="radio"
+                name="task"
+                value="caption"
+                checked={task === 'caption'}
+                onChange={(e) => setTask(e.target.value)}
+              />
+              Generate Caption
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <input
+                type="radio"
+                name="task"
+                value="summary"
+                checked={task === 'summary'}
+                onChange={(e) => setTask(e.target.value)}
+              />
+              Generate Summary
+            </label>
+          </div>
         </div>
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !image}
           style={{
-            padding: '10px 20px',
-            backgroundColor: loading ? '#ccc' : '#0070f3',
+            width: '100%',
+            padding: '12px',
+            backgroundColor: loading || !image ? '#ccc' : '#0070f3',
             color: 'white',
             border: 'none',
             borderRadius: '4px',
-            cursor: loading ? 'not-allowed' : 'pointer',
+            cursor: loading || !image ? 'not-allowed' : 'pointer',
+            fontSize: '16px',
+            fontWeight: 'bold',
           }}
         >
-          {loading ? 'Processing...' : 'Analyze'}
+          {loading ? 'Processing...' : task === 'caption' ? 'Generate Caption' : 'Generate Summary'}
         </button>
       </form>
 
-      {error && <p style={{ color: 'red', marginTop: '20px' }}>Error: {error}</p>}
+      {error && (
+        <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#fee', borderRadius: '4px', color: '#c00' }}>
+          Error: {error}
+        </div>
+      )}
 
-      {results && (
-        <div style={{ marginTop: '30px', padding: '15px', backgroundColor: '#f5f5f5', borderRadius: '4px' }}>
-          <h2>Results</h2>
-          <pre style={{ overflow: 'auto', maxHeight: '300px' }}>
-            {JSON.stringify(results, null, 2)}
-          </pre>
+      {result && (
+        <div style={{ marginTop: '30px', padding: '15px', backgroundColor: '#efe', borderRadius: '4px' }}>
+          <h2 style={{ marginTop: 0 }}>
+            {task === 'caption' ? 'Caption' : 'Summary'}
+          </h2>
+          <p style={{ fontSize: '16px', lineHeight: '1.6', color: '#333' }}>
+            {result}
+          </p>
         </div>
       )}
     </div>
