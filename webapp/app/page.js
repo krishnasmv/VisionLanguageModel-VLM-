@@ -31,6 +31,7 @@ export default function Home() {
 
     setLoading(true);
     setError('');
+    setResult('');
 
     try {
       const reader = new FileReader();
@@ -43,9 +44,14 @@ export default function Home() {
           body: JSON.stringify({ image_base64: base64, task }),
         });
 
-        if (!res.ok) throw new Error('API error');
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || 'API error');
+        }
+
         const data = await res.json();
-        setResult(data?.generated_text || data?.[0]?.generated_text || JSON.stringify(data));
+        const output = data.output?.[0] || data.output || JSON.stringify(data);
+        setResult(output);
       };
       reader.readAsDataURL(image);
     } catch (err) {
@@ -137,7 +143,7 @@ export default function Home() {
             fontWeight: 'bold',
           }}
         >
-          {loading ? 'Processing...' : task === 'caption' ? 'Generate Caption' : 'Generate Summary'}
+          {loading ? 'Processing... (this may take 30 seconds)' : task === 'caption' ? 'Generate Caption' : 'Generate Summary'}
         </button>
       </form>
 
