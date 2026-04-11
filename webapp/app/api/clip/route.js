@@ -15,7 +15,8 @@ export async function POST(req) {
       ? 'Generate a short caption for this image.' 
       : 'Summarize what you see in this image.';
 
-    const response = await fetch("https://api.replicate.com/v1/predictions", {
+    // Create prediction
+    const createResponse = await fetch("https://api.replicate.com/v1/predictions", {
       method: "POST",
       headers: {
         "Authorization": `Token ${REPLICATE_TOKEN}`,
@@ -30,8 +31,28 @@ export async function POST(req) {
       }),
     });
 
-    const result = await response.json();
-    return Response.json(result);
+    const prediction = await createResponse.json();
+    const predictionId = prediction.id;
+
+    // Poll for completion
+    let result = prediction;
+    let attempts = 0;
+    while (result.status === "processing" && attempts < 60) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const statusResponse = await fetch(`https://api.replicate.com/v1/predictions/${predictionId}`, {
+        headers: { "Authorization": `Token ${REPLICATE_TOKEN}` },
+      });
+      
+      result = await statusResponse.json();
+      attempts++;
+    }
+
+    if (result.status === "succeeded") {
+      return Response.json({ output: result.output });
+    } else {
+      return Response.json({ error: `Prediction failed: ${result.status}` }, { status: 500 });
+    }
   } catch (error) {
     console.error('Server error:', error);
     return Response.json({ error: error.message }, { status: 500 });
